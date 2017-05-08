@@ -1,0 +1,114 @@
+---
+- name: Add repository debmon key
+  apt_key: url=http://debmon.org/debmon/repo.key state=present
+  when: ansible_distribution == 'Debian'
+
+- name: Add repository debmon
+  apt_repository: repo='deb http://debmon.org/debmon debmon-jessie main' state=present filename='debmon'
+  when: ansible_distribution == 'Debian'
+
+- name: Add repository Ubuntu ppa icinga
+  apt_repository: repo='ppa:formorer/icinga'
+  when: ansible_distribution == 'Ubuntu'
+
+
+
+- name: Install Apache & php modules packages
+  apt:
+    name: "{{ item }}"
+    install_recommends: no
+  with_items:
+      - apache2
+      - libapache2-mod-php7.0
+      - php7.0-gd
+      - php7.0-intl
+      - php7.0-xml
+      - php7.0-ldap
+      - php7.0-mysql
+      - php-imagick
+
+  when: ansible_distribution == 'Ubuntu'
+
+
+- name: Install Apache & php modules packages & pnp4nagios
+  apt:
+    name: "{{ item }}"
+    install_recommends: no
+  with_items:
+      - php5-imagick
+      - php5-intl
+      - php5-ldap
+      - php5-mysql
+  when: ansible_distribution == 'Debian'
+
+- name: Modify php.ini
+  lineinfile: dest=/etc/php5/apache2/php.ini
+              regexp=";date.timezone"  backrefs=yes
+              line="date.timezone = Europe/Rome"
+  when: ansible_distribution == 'Debian'
+  notify:
+    - restart apache2
+
+- name: Modify php.ini
+  lineinfile: dest=/etc/php/7.0/apache2/php.ini
+              regexp=";date.timezone"  backrefs=yes
+              line="date.timezone = Europe/Rome"
+  when: ansible_distribution == 'Ubuntu'
+  notify:
+    - restart apache2
+
+- name: Install icingaweb2 packages
+  apt:
+    name: "{{ item }}"
+    install_recommends: no
+  with_items:
+      - icingaweb2
+      - icingaweb2-module-monitoring
+      - icingacli
+
+- name: Add user www-data to group icingaweb2, nagios
+  user: name=www-data
+        groups=icingaweb2,nagios
+
+
+- name: Add icingaadmin password (changeme) hash to initial db schema
+  lineinfile: dest=/usr/share/icingaweb2/etc/schema/mysql.schema.sql
+              regexp="INSERT INTO icingaweb_user"
+              line="INSERT INTO icingaweb_user (name, active, password_hash) VALUES ('icingaadmin', 1, 'password');"
+
+- name: Create a new database with name icingaweb2
+  mysql_db:
+    name: icingaweb2
+    login_user: root
+    login_password: "{{ mysql_root_pass }}"
+    state: present
+  notify:
+    - Import db
+
+- name: Create database user icingaweb2
+  mysql_user:
+        login_password: "{{ mysql_root_pass }}"
+        name: icingaweb2
+        password: 12345
+        priv: 'icingaweb2.*:ALL,GRANT'
+        state: present
+
+- name: Copy IcingaWbe2 config file
+  copy: src={{ item }} dest=/etc/icingaweb2/
+  with_fileglob:
+    - files/*
+- name: create modules directory
+  file:
+    path: /etc/icingaweb2/modules/monitoring
+    state: directory
+
+- name: Copy IcingaWbe2 modules config file
+  copy: src={{ item }} dest=/etc/icingaweb2/modules/monitoring/
+  with_fileglob:
+    - files/modules/monitoring/*
+
+- name: Copy resource.ini config file
+  template: src=resources.ini.j2 dest=/etc/icingaweb2/resources.ini
+
+- name: Enable Module monitoring
+  command: "icingacli module enable monitoring"

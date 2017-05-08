@@ -1,0 +1,5 @@
+mysql_root_pass: password #MySQL Root Password
+
+# openssl passwd -1 password per generare la password dell'utente icingaadmin
+icingaadmin_pass: 
+

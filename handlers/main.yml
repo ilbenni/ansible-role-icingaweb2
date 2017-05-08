@@ -1,0 +1,17 @@
+---
+- name: restart icinga2
+  service: name=icinga2
+           state=restarted
+           enabled=yes
+
+- name: restart apache2
+  service: name=apache2
+           state=restarted
+           enabled=yes
+
+- name: reload icinga2
+  service: name=icinga2
+           state=reloaded
+
+- name: Import db
+  mysql_db: name=icingaweb2 state=import login_password="{{ mysql_root_pass }}" target=/usr/share/icingaweb2/etc/schema/mysql.schema.sql
