@@ -74,7 +74,7 @@
 - name: Add icingaadmin password (changeme) hash to initial db schema
   lineinfile: dest=/usr/share/icingaweb2/etc/schema/mysql.schema.sql
               regexp="INSERT INTO icingaweb_user"
-              line="INSERT INTO icingaweb_user (name, active, password_hash) VALUES ('icingaadmin', 1, 'password');"
+              line="INSERT INTO icingaweb_user (name, active, password_hash) VALUES ('icingaadmin', 1, '{{ icingaadmin_pass }}');"
 
 - name: Create a new database with name icingaweb2
   mysql_db:
